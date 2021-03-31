@@ -847,16 +847,19 @@ class TestPluginsConfiguration(object):
                 assert get_plugin(plugins, 'prebuild_plugins', 'koji_delegate')
 
     @pytest.mark.parametrize('build_type', (BUILD_TYPE_ORCHESTRATOR, BUILD_TYPE_WORKER))
-    @pytest.mark.parametrize('remote_source_build_args', (None, 'some_args'))
-    @pytest.mark.parametrize('remote_source_configs', (None, ['some configs']))
-    @pytest.mark.parametrize('remote_source_url', (None, 'some_url'))
-    def test_render_download_remote_sources(self, build_type, remote_source_url,
-                                            remote_source_build_args,
-                                            remote_source_configs):
+    @pytest.mark.parametrize('remote_sources', (
+        None,
+        [{
+            'build_args': 'some_args',
+            'configs': 'some configs',
+            'icm_url': None,
+            'url': 'some_url',
+            'name': None
+        }],
+    ))
+    def test_render_download_remote_sources(self, build_type, remote_sources):
         extra_args = {
-            'remote_source_url': remote_source_url,
-            'remote_source_configs': remote_source_configs,
-            'remote_source_build_args': remote_source_build_args
+            'remote_sources': remote_sources
         }
         user_params = get_sample_user_params(extra_args=extra_args, build_type=build_type)
         self.mock_repo_info()
@@ -866,10 +869,7 @@ class TestPluginsConfiguration(object):
             assert get_plugin(plugins, 'prebuild_plugins', 'download_remote_source')
             plugin_args = plugin_value_get(plugins, 'prebuild_plugins',
                                            'download_remote_source', 'args')
-
-            assert plugin_args.get('remote_source_url') == remote_source_url
-            assert plugin_args.get('remote_source_configs') == remote_source_configs
-            assert plugin_args.get('remote_source_build_args') == remote_source_build_args
+            assert plugin_args.get('remote_sources') == remote_sources
 
         else:
             with pytest.raises(NoSuchPluginException):
@@ -899,11 +899,20 @@ class TestPluginsConfiguration(object):
                 assert get_plugin(plugins, 'prebuild_plugins', 'resolve_remote_source')
 
     @pytest.mark.parametrize('build_type', (BUILD_TYPE_ORCHESTRATOR, BUILD_TYPE_WORKER))
-    @pytest.mark.parametrize('remote_source_icm_url', (None, TEST_REMOTE_SOURCE_ICM_URL))
-    def test_render_add_image_content_manifest(self, build_type, remote_source_icm_url):
+    @pytest.mark.parametrize('remote_sources', (
+            None,
+            [{
+                'build_args': None,
+                'configs': None,
+                'icm_url': TEST_REMOTE_SOURCE_ICM_URL,
+                'url': None,
+                'name': None
+            }],
+    ))
+    def test_render_add_image_content_manifest(self, build_type, remote_sources):
         phase = 'prebuild_plugins'
         plugin = 'add_image_content_manifest'
-        extra_args = {'remote_source_icm_url': remote_source_icm_url}
+        extra_args = {'remote_sources': remote_sources}
         user_params = get_sample_user_params(build_type=build_type, extra_args=extra_args)
         build_json = PluginsConfiguration(user_params).render()
         plugins = get_plugins_from_build_json(build_json)
@@ -913,7 +922,7 @@ class TestPluginsConfiguration(object):
         else:
             assert get_plugin(plugins, phase, plugin)
             plugin_args = plugin_value_get(plugins, phase, plugin, 'args')
-            assert plugin_args.get('remote_source_icm_url') == remote_source_icm_url
+            assert plugin_args.get('remote_sources') == remote_sources
 
 
 class TestSourceContainerPluginsConfiguration(object):
